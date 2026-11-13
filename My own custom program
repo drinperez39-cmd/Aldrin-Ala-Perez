@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THREADS Clothing Store</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#222}
+header{background:#171717;color:white;padding:20px}
+header h1{margin:0;letter-spacing:3px}
+header p{color:#bbb;margin:5px 0 0}
+nav{display:flex;flex-wrap:wrap;gap:7px;background:#252525;padding:10px}
+nav button{border:0;padding:12px;color:white;background:transparent;border-radius:6px;cursor:pointer}
+nav button.active,nav button:hover{background:#555}
+main{max-width:1100px;margin:auto;padding:18px}
+.page{display:none}
+.page.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+.card,.panel{background:white;padding:18px;border-radius:10px;box-shadow:0 2px 8px #0001;margin-bottom:15px}
+.card{cursor:pointer;border:2px solid transparent}
+.card:hover{border-color:#777;transform:translateY(-2px)}
+.card small{color:#777}
+.card h2{font-size:24px;margin:10px 0 0}
+input,select{width:100%;padding:11px;border:1px solid #ccc;border-radius:6px;margin:5px 0 12px}
+.btn{border:0;padding:10px 14px;border-radius:6px;background:#222;color:white;margin:3px;cursor:pointer}
+.btn.green{background:#167849}
+.btn.red{background:#b83232}
+.btn.gray{background:#777}
+button:disabled{opacity:.5;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;background:white}
+th,td{padding:11px;text-align:left;border-bottom:1px solid #eee}
+th{background:#eee}
+.table-wrap{overflow-x:auto}
+.form-grid,.product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.product{background:white;border:1px solid #ddd;border-radius:9px;padding:14px}
+.price{font-size:20px;font-weight:bold}
+.total{font-size:23px;font-weight:bold;margin:15px 0}
+.low{color:#c0392b;font-weight:bold}
+@media(max-width:600px){
+main{padding:10px}
+nav button{padding:9px;font-size:12px}
+th,td{font-size:12px;padding:8px}
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>THREADS</h1>
+<p>Clothing Store Management System</p>
+</header>
+
+<nav>
+<button class="active" data-page="dashboard">Dashboard</button>
+<button data-page="products">Products</button>
+<button data-page="pos">POS / Cashier</button>
+<button data-page="sales">Sales History</button>
+<button data-page="reports">Business Reports</button>
+</nav>
+
+<main>
+
+<section id="dashboard" class="page active">
+<h2>Dashboard</h2>
+<div class="cards">
+<div class="card" onclick="showPage('products')">
+<small>Total Products · Tap to view</small>
+<h2 id="totalProducts">0</h2>
+</div>
+<div class="card" onclick="showPage('products')">
+<small>Total Stock · Tap to view</small>
+<h2 id="totalStock">0</h2>
+</div>
+<div class="card" onclick="showPage('sales')">
+<small>Today's Sales · Tap to view</small>
+<h2 id="todaySales">₱0.00</h2>
+</div>
+<div class="card" onclick="showPage('reports')">
+<small>Total Revenue · Tap to view</small>
+<h2 id="revenue">₱0.00</h2>
+</div>
+</div>
+<div class="panel">
+<h3>Low Stock Alert</h3>
+<div id="lowStock"></div>
+</div>
+</section>
+
+<section id="products" class="page">
+<h2>Product Management</h2>
+<div class="panel">
+<h3 id="formTitle">Add New Product</h3>
+<form id="productForm">
+<input type="hidden" id="editId">
+<div class="form-grid">
+<div>Product Name<input id="pname" required></div>
+<div>Category
+<select id="pcategory">
+<option>Shirts</option>
+<option>Pants</option>
+<option>Jackets</option>
+<option>Shoes</option>
+<option>Accessories</option>
+</select>
+</div>
+<div>Price<input id="pprice" type="number" min="0" step=".01" required></div>
+<div>Stock<input id="pstock" type="number" min="0" step="1" required></div>
+</div>
+<button class="btn green" type="submit">Save Product</button>
+<button class="btn gray" type="button" onclick="resetForm()">Clear</button>
+</form>
+</div>
+<div class="panel">
+<input id="searchProduct" placeholder="Search products..." oninput="renderProducts()">
+<div class="table-wrap">
+<table>
+<thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+<tbody id="productTable"></tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section id="pos" class="page">
+<h2>Point of Sale / Cashier</h2>
+<div class="panel">
+<h3>Available Products</h3>
+<div id="posProducts" class="product-grid"></div>
+</div>
+<div class="panel">
+<h3>Shopping Cart</h3>
+<div class="table-wrap">
+<table>
+<thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Action</th></tr></thead>
+<tbody id="cartTable"></tbody>
+</table>
+</div>
+<div class="total">Total: <span id="cartTotal">₱0.00</span></div>
+<button class="btn green" onclick="checkout()">Complete Checkout</button>
+<button class="btn gray" onclick="clearCart()">Clear Cart</button>
+</div>
+</section>
+
+<section id="sales" class="page">
+<h2>Sales History</h2>
+<div class="panel">
+<div class="table-wrap">
+<table>
+<thead><tr><th>Receipt</th><th>Date</th><th>Items</th><th>Total</th></tr></thead>
+<tbody id="salesTable"></tbody>
+</table>
+</div>
+</div>
+</section>
+
+<section id="reports" class="page">
+<h2>Business Reports</h2>
+<div class="cards">
+<div class="card"><small>Total Revenue</small><h2 id="reportRevenue">₱0.00</h2></div>
+<div class="card"><small>Total Transactions</small><h2 id="transactions">0</h2></div>
+<div class="card"><small>Units Sold</small><h2 id="unitsSold">0</h2></div>
+<div class="card"><small>Average Sale</small><h2 id="averageSale">₱0.00</h2></div>
+</div>
+<div class="panel">
+<h3>Inventory Valuation</h3>
+<h2 id="stockValue">₱0.00</h2>
+<p id="reportStatus">Reports update automatically after checkout.</p>
+<button class="btn" onclick="exportCSV()">Export Sales to CSV</button>
+</div>
+</section>
+
+</main>
+
+<script>
+const money=n=>"₱"+Number(n).toFixed(2);
+const today=()=>new Date().toLocaleDateString();
+
+function loadData(key,fallback){
+try{
+const data=JSON.parse(localStorage.getItem(key));
+return Array.isArray(data)?data:fallback;
+}catch(e){return fallback;}
+}
+
+let products=loadData("threads_products",[
+{id:1,name:"Basic T-Shirt",category:"Shirts",price:250,stock:20},
+{id:2,name:"Cargo Pants",category:"Pants",price:650,stock:12},
+{id:3,name:"Hoodie Jacket",category:"Jackets",price:850,stock:8},
+{id:4,name:"Classic Sneakers",category:"Shoes",price:1200,stock:6},
+{id:5,name:"Cap",category:"Accessories",price:180,stock:15}
+]);
+
+let sales=loadData("threads_sales",[]);
+let cart=[];
+
+function saveData(){
+localStorage.setItem("threads_products",JSON.stringify(products));
+localStorage.setItem("threads_sales",JSON.stringify(sales));
+}
+
+function escapeHTML(value){
+return String(value).replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+}
+
+function showPage(id){
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+document.querySelectorAll("nav button").forEach(b=>{
+b.classList.toggle("active",b.dataset.page===id);
+});
+refresh();
+}
+
+document.querySelectorAll("nav button").forEach(button=>{
+button.addEventListener("click",()=>showPage(button.dataset.page));
+});
+
+function refresh(){
+renderDashboard();
+renderProducts();
+renderPOS();
+renderCart();
+renderSales();
+renderReports();
+}
+
+function renderDashboard(){
+document.getElementById("totalProducts").textContent=products.length;
+
+document.getElementById("totalStock").textContent=
+products.reduce((sum,p)=>sum+Number(p.stock),0);
+
+const revenue=sales.reduce((sum,s)=>sum+Number(s.total),0);
+document.getElementById("revenue").textContent=money(revenue);
+
+const daily=sales.filter(s=>s.date===today())
+.reduce((sum,s)=>sum+Number(s.total),0);
+document.getElementById("todaySales").textContent=money(daily);
+
+const low=products.filter(p=>Number(p.stock)<5);
+document.getElementById("lowStock").innerHTML=low.length?
+low.map(p=>`<p class="low">${escapeHTML(p.name)} — ${p.stock} left</p>`).join("")
+:"No low-stock products.";
+}
+
+document.getElementById("productForm").addEventListener("submit",function(e){
+e.preventDefault();
+
+const id=document.getElementById("editId").value;
+const item={
+name:document.getElementById("pname").value.trim(),
+category:document.getElementById("pcategory").value,
+price:Number(document.getElementById("pprice").value),
+stock:Number(document.getElementById("pstock").value)
+};
+
+if(!item.name||!Number.isFinite(item.price)||item.price<0||
+!Number.isInteger(item.stock)||item.stock<0){
+alert("Please enter valid product details.");
+return;
+}
+
+if(id){
+products=products.map(p=>p.id==id?{...p,...item}:p);
+}else{
+item.id=Date.now();
+products.push(item);
+}
+
+saveData();
+resetForm();
+refresh();
+alert("Product saved successfully!");
+});
+
+function editProduct(id){
+const p=products.find(x=>x.id===id);
+if(!p)return;
+
+document.getElementById("editId").value=p.id;
+document.getElementById("pname").value=p.name;
+document.getElementById("pcategory").value=p.category;
+document.getElementById("pprice").value=p.price;
+document.getElementById("pstock").value=p.stock;
+document.getElementById("formTitle").textContent="Edit Product";
+window.scrollTo(0,0);
+}
+
+function deleteProduct(id){
+if(cart.some(c=>c.id===id)){
+alert("Remove this product from the cart first.");
+return;
+}
+if(!confirm("Delete this product?"))return;
+products=products.filter(p=>p.id!==id);
+saveData();
+refresh();
+}
+
+function resetForm(){
+document.getElementById("productForm").reset();
+document.getElementById("editId").value="";
+document.getElementById("formTitle").textContent="Add New Product";
+}
+
+function renderProducts(){
+const q=(document.getElementById("searchProduct")?.value||"").toLowerCase();
+const list=products.filter(p=>(p.name+" "+p.category).toLowerCase().includes(q));
+
+document.getElementById("productTable").innerHTML=list.map(p=>`
+<tr>
+<td>${escapeHTML(p.name)}</td>
+<td>${escapeHTML(p.category)}</td>
+<td>${money(p.price)}</td>
+<td>${p.stock}</td>
+<td>
+<button class="btn" onclick="editProduct(${p.id})">Edit</button>
+<button class="btn red" onclick="deleteProduct(${p.id})">Delete</button>
+</td>
+</tr>
+`).join("")||'<tr><td colspan="5">No products found.</td></tr>';
+}
+
+function renderPOS(){
+document.getElementById("posProducts").innerHTML=products.map(p=>`
+<div class="product">
+<strong>${escapeHTML(p.name)}</strong>
+<p>${escapeHTML(p.category)}</p>
+<p class="price">${money(p.price)}</p>
+<p>Stock: ${p.stock}</p>
+<button class="btn green" ${p.stock<=0?"disabled":""} onclick="addToCart(${p.id})">Add to Cart</button>
+</div>
+`).join("")||"No products available.";
+}
+
+function addToCart(id){
+const p=products.find(x=>x.id===id);
+if(!p||p.stock<=0)return alert("Out of stock.");
+
+const item=cart.find(x=>x.id===id);
+if(item){
+if(item.qty>=p.stock)return alert("Not enough stock.");
+item.qty++;
+}else{
+cart.push({id:p.id,name:p.name,price:p.price,qty:1});
+}
+renderCart();
+}
+
+function changeQty(id,amount){
+const item=cart.find(x=>x.id===id);
+const p=products.find(x=>x.id===id);
+if(!item||!p)return;
+
+if(item.qty+amount<=0){
+cart=cart.filter(x=>x.id!==id);
+}else if(item.qty+amount<=p.stock){
+item.qty+=amount;
+}else{
+alert("Not enough stock.");
+}
+renderCart();
+}
+
+function removeCart(id){
+cart=cart.filter(c=>c.id!==id);
+renderCart();
+}
+
+function clearCart(){
+cart=[];
+renderCart();
+}
+
+function renderCart(){
+document.getElementById("cartTable").innerHTML=cart.map(c=>`
+<tr>
+<td>${escapeHTML(c.name)}</td>
+<td>${money(c.price)}</td>
+<td>
+<button onclick="changeQty(${c.id},-1)">−</button>
+${c.qty}
+<button onclick="changeQty(${c.id},1)">+</button>
+</td>
+<td>${money(c.price*c.qty)}</td>
+<td><button class="btn red" onclick="removeCart(${c.id})">Remove</button></td>
+</tr>
+`).join("")||'<tr><td colspan="5">Cart is empty.</td></tr>';
+
+const total=cart.reduce((sum,c)=>sum+c.price*c.qty,0);
+document.getElementById("cartTotal").textContent=money(total);
+}
+
+function checkout(){
+if(!cart.length){
+alert("Your cart is empty.");
+return;
+}
+
+for(const c of cart){
+const p=products.find(x=>x.id===c.id);
+if(!p||p.stock<c.qty){
+alert("Insufficient stock for "+c.name);
+return;
+}
+}
+
+const total=cart.reduce((sum,c)=>sum+c.price*c.qty,0);
+
+cart.forEach(c=>{
+const p=products.find(x=>x.id===c.id);
+p.stock-=c.qty;
+});
+
+sales.unshift({
+receipt:"THR-"+Date.now(),
+date:today(),
+items:cart.map(c=>({...c})),
+total:total
+});
+
+saveData();
+cart=[];
+refresh();
+
+showPage("reports");
+alert("Checkout successful! Total: "+money(total));
+}
+
+function renderSales(){
+document.getElementById("salesTable").innerHTML=sales.map(s=>`
+<tr>
+<td>${escapeHTML(s.receipt)}</td>
+<td>${escapeHTML(s.date)}</td>
+<td>${s.items.reduce((sum,c)=>sum+Number(c.qty),0)}</td>
+<td>${money(s.total)}</td>
+</tr>
+`).join("")||'<tr><td colspan="4">No sales recorded yet.</td></tr>';
+}
+
+function renderReports(){
+const revenue=sales.reduce((sum,s)=>sum+Number(s.total),0);
+const count=sales.length;
+const units=sales.reduce((sum,s)=>sum+s.items.reduce((a,c)=>a+Number(c.qty),0),0);
+const stockValue=products.reduce((sum,p)=>sum+(Number(p.price)*Number(p.stock)),0);
+
+document.getElementById("reportRevenue").textContent=money(revenue);
+document.getElementById("transactions").textContent=count;
+document.getElementById("unitsSold").textContent=units;
+document.getElementById("averageSale").textContent=money(count?revenue/count:0);
+document.getElementById("stockValue").textContent=money(stockValue);
+document.getElementById("reportStatus").textContent=
+"Last updated: "+new Date().toLocaleString();
+}
+
+function exportCSV(){
+if(!sales.length)return alert("No sales to export.");
+
+const rows=[["Receipt","Date","Product","Quantity","Price","Subtotal"]];
+
+sales.forEach(s=>{
+s.items.forEach(i=>{
+rows.push([s.receipt,s.date,i.name,i.qty,i.price,i.qty*i.price]);
+});
+});
+
+const csv=rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+const blob=new Blob([csv],{type:"text/csv"});
+const url=URL.createObjectURL(blob);
+const a=document.createElement("a");
+a.href=url;
+a.download="threads-sales-report.csv";
+a.click();
+URL.revokeObjectURL(url);
+}
+
+saveData();
+refresh();
+</script>
+
+</body>
+</html>
